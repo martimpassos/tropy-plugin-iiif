@@ -235,6 +235,8 @@ class Manifest extends Resource {
 }
 
 module.exports = {
+  expand,
+  Resource,
   Canvas,
   Image,
   Manifest

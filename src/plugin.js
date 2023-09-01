@@ -1,6 +1,11 @@
 const { readFile } = require('fs/promises')
-const { Manifest } = require('./manifest')
+const { expand, Manifest, Resource } = require('./manifest')
 const LABELS = require('./labels.json')
+const { IIIFBuilder } = require('iiif-builder');
+const jsonld = require('jsonld')
+const builder = new IIIFBuilder();
+const util = require('util');
+
 
 class IIIFPlugin {
   constructor(options, context) {
@@ -9,6 +14,8 @@ class IIIFPlugin {
       ...IIIFPlugin.defaults,
       ...options
     }
+    console.log(context)
+    console.log(options)
   }
 
   async import(payload) {
@@ -38,7 +45,57 @@ class IIIFPlugin {
     }
   }
 
-  convert(manifest) {
+  async export(data) {
+
+    let manifests = []
+    //const zip = new JSZip();
+
+    for (let item of data) {
+      try {
+        let manifest = this.convertTropy(item)
+        console.log(builder.toPresentation2({id: manifest.id, type: 'Manifest'}))
+        manifests.push(manifest)
+        //zip.file(`${manifest.id}.json`, manifest)
+      } catch (e) {
+        console.log(e.stack)
+        // this.context.logger.warn(
+        //   {
+        //     stack: e.stack
+        //   },
+        //   `failed to export IIIF manifest ${item}`
+        // )
+      }
+    } 
+
+    //collection = createCollection(manifests, this.options.collectionInfo)
+    //zip.file(`${this.options.collectionName}`, collection)
+    
+  }
+
+  async convertTropy(item) {
+
+    //let iMap = this.mapIdsToLabels(undefined)
+    //let pMap = this.mapIdsToLabels(undefined)
+
+    //const resource = new Resource(item)
+    async function parse(data, jsonld) {
+      let expanded = await expand(jsonld, data)
+      return expanded
+      }
+  
+    let expanded = await parse(item, jsonld)
+    //console.log(util.inspect(expanded, { depth: null }))
+    const newManifest = builder.createManifest(
+        'https://example.org/iiif/1.json', // this.options.baseId
+        manifest => {
+            manifest.addLabel(expanded[0]['@graph'][0]['http://purl.org/dc/elements/1.1/title'][0]['@value']);
+        }
+    )
+    console.log(newManifest)
+    return newManifest
+  }
+
+  convertManifest(manifest) {
     let { props, canvases } = manifest
     let { itemTemplate, photoTemplate } = this.options
 
